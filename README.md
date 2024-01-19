@@ -2,9 +2,9 @@
 
 "Caso de uso: Asistir en la valoración de empresas analizando los estados financieros , ayudando a estimar valoraciones de empresas en función de los métodos profesionales aplicados por bancos de inversión y recomendar decisiones de compra o venta de acciones"
 
-RIESGOS Y LIMITACIONES: 
+# RIESGOS Y LIMITACIONES: 
 
--Precisión y Fiabilidad de los Datos: Los LLM dependen de los datos proporcionados para el análisis. Si los estados financieros o los datos del mercado son inexactos o están desactualizados, esto podría llevar a valoraciones erróneas.
+Precisión y Fiabilidad de los Datos: Los LLM dependen de los datos proporcionados para el análisis. Si los estados financieros o los datos del mercado son inexactos o están desactualizados, esto podría llevar a valoraciones erróneas.
 
 -Comprensión Limitada de Contextos Complejos: Aunque los LLM son avanzados en el procesamiento del lenguaje natural, pueden no comprender completamente contextos financieros complejos o matices específicos de la industria que son cruciales para la valoración de empresas.
 
@@ -20,7 +20,8 @@ RIESGOS Y LIMITACIONES:
 
 -Riesgos de Seguridad y Privacidad de los Datos: Utilizar datos financieros sensibles en modelos de LLM plantea preocupaciones de seguridad y privacidad. Es crucial asegurar que estos datos se manejen y procesen de manera segura.
 
-SISTEMAS DE EVALUACIÓN DEL MODELO.
+# SISTEMAS DE EVALUACIÓN DEL MODELO.
+
 GPT-4 de OpenAI:
 
 Es uno de los modelos de lenguaje más avanzados y versátiles disponibles, capaz de generar texto coherente y contextualmente relevante. Su gran base de datos y su capacidad para comprender y generar lenguaje natural lo hacen ideal para analizar información financiera y generar recomendaciones o resúmenes.
@@ -44,7 +45,8 @@ ELECTRA de Google AI:
 
 Similar a BERT, pero más eficiente en términos de aprendizaje y rendimiento en tareas de procesamiento de lenguaje natural. Puede ser útil para el análisis de textos financieros.
 
-POLÍTICAS DE GOBERNANZA
+# POLÍTICAS DE GOBERNANZA
+
 Cumplimiento Normativo:
 
 Asegúrate de que el uso del LLM cumpla con todas las regulaciones financieras locales e internacionales, incluyendo las leyes de privacidad de datos (como GDPR o CCPA), normas de contabilidad, y regulaciones de los mercados de valores.
