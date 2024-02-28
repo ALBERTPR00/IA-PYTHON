@@ -1,1 +1,243 @@
+!pip install gradio --quiet
+!pip install xformer --quiet
+!pip install chromadb --quiet
+!pip install langchain --quiet
+!pip install accelerate --quiet
+!pip install transformers --quiet
+!pip install bitsandbytes --quiet
+!pip install unstructured --quiet
+!pip install sentence-transformers --quiet
 
+import torch
+import gradio as gr
+
+from textwrap import fill
+from IPython.display import Markdown, display
+
+from langchain.prompts.chat import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    SystemMessagePromptTemplate,
+    )
+
+from langchain import PromptTemplate
+from langchain import HuggingFacePipeline
+
+from langchain.vectorstores import Chroma
+from langchain.schema import AIMessage, HumanMessage
+from langchain.memory import ConversationBufferMemory
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.document_loaders import UnstructuredMarkdownLoader, UnstructuredURLLoader
+from langchain.chains import LLMChain, SimpleSequentialChain, RetrievalQA, ConversationalRetrievalChain
+
+from transformers import BitsAndBytesConfig, AutoModelForCausalLM, AutoTokenizer, GenerationConfig, pipeline
+
+import warnings
+warnings.filterwarnings('ignore')
+
+
+
+MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1"
+
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_use_double_quant=True,
+)
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=True)
+tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME, torch_dtype=torch.float16,
+    trust_remote_code=True,
+    device_map="auto",
+    quantization_config=quantization_config
+)
+
+generation_config = GenerationConfig.from_pretrained(MODEL_NAME)
+generation_config.max_new_tokens = 1024
+generation_config.temperature = 0.001
+generation_config.top_p = 0.95
+generation_config.do_sample = True
+generation_config.repetition_penalty = 1.15
+
+pipeline = pipeline(
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    return_full_text=True,
+    generation_config=generation_config,
+)
+
+
+llm = HuggingFacePipeline(
+    pipeline=pipeline,
+    )
+
+
+embeddings = HuggingFaceEmbeddings(
+    model_name="thenlper/gte-large",
+    model_kwargs={"device": "cuda"},
+    encode_kwargs={"normalize_embeddings": True},
+
+
+
+urls = [
+    "https://www.expansion.com/mercados/cotizaciones/valores/telefonica_M.TEF.html ",
+    "https://www.expansion.com/mercados/cotizaciones/valores/bbva_M.BBVA.html ",
+    "https://www.expansion.com/mercados/cotizaciones/valores/iberdrola_M.IBE.html",
+    "https://www.expansion.com/mercados/cotizaciones/valores/santander_M.SAN.html",
+    "https://www.expansion.com/mercados/cotizaciones/valores/ferrovial_M.FER.html",
+    "https://www.expansion.com/mercados/cotizaciones/valores/enagas_M.ENG.html",
+    "https://www.euroland.com/SiteFiles/market/search.asp?GUID=B8D60F4600CAF1479E480C0BA6CE775E&ViewPageNumber=1&ViewAllStockSelected=False&Operation=selection&SortWinLoser=False&SortDirection=&ColumnToSort=&ClickedWinLoser=&ClickedMarkCap=&NameSearch=&UpperLevel=&LowerLevel=&RegionalIndustry=&RegionalListName=&RegionalListID=&RegionalIndexName=&CorporateSites=False&SharesPerPage=50",
+    "https://www.expansion.com/mercados/cotizaciones/indices/ibex35_I.IB.html",
+    "https://es.investing.com/equities/telefonica-cash-flow",
+    "https://es.investing.com/equities/grupo-ferrovial-cash-flow",
+    "https://es.investing.com/equities/bbva-cash-flow",
+    "https://es.investing.com/equities/banco-santander-cash-flow",
+    "https://es.investing.com/equities/iberdrola-cash-flow",
+    "https://es.investing.com/equities/enagas-cash-flow",
+    "https://es.investing.com/equities/enagas-ratios",
+    "https://es.investing.com/equities/telefonica-ratios",
+    "https://es.investing.com/equities/grupo-ferrovial-ratios",
+    "https://es.investing.com/equities/bbva-ratios",
+    "https://es.investing.com/equities/banco-santander-ratios",
+    "https://es.investing.com/equities/iberdrola-ratios"
+
+]
+
+loader = UnstructuredURLLoader(urls=urls)
+documents = loader.load()
+
+len(documents)
+
+
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=64)
+texts_chunks = text_splitter.split_documents(documents)
+
+len(texts_chunks)
+# output: 21
+
+template = """
+[INST] <>
+Actúa como un bot financiero experto en el análsis de valores cotizados en el IBEX-35
+<>
+{context}
+{question} [/INST]
+"""
+
+prompt = PromptTemplate(template=template, input_variables=["context", "question"])
+
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=db.as_retriever(search_kwargs={"k": 2}),
+    return_source_documents=True,
+    chain_type_kwargs={"prompt": prompt},
+)
+
+query = "¿Cuál es el precio de la acción de BBVA hoy?"
+result_ = qa_chain(
+    query
+)
+result = result_["result"].strip()
+
+
+display(Markdown(f"<b>{query}</b>"))
+display(Markdown(f"<p>{result}</p>"))
+
+
+query = "Haz un análisis técnico de BBVA  para el año 2022"
+result_ = qa_chain(
+    query
+)
+result = result_["result"].strip()
+
+
+display(Markdown(f"<b>{query}</b>"))
+display(Markdown(f"<p>{result}</p>"))
+
+result_["source_documents"]
+
+custom_template = """You are finance AI Assistant Given the
+following conversation and a follow up question, rephrase the follow up question
+to be a standalone question. At the end of standalone question add this
+'Answer the question in English language.' If you do not know the answer reply with 'I am sorry, I dont have enough information'.
+Chat History:
+{chat_history}
+Follow Up Input: {question}
+Standalone question:
+"""
+
+CUSTOM_QUESTION_PROMPT = PromptTemplate.from_template(custom_template)
+
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+qa_chain = ConversationalRetrievalChain.from_llm(
+    llm=llm,
+    retriever=db.as_retriever(search_kwargs={"k": 2}),
+    memory=memory,
+    condense_question_prompt=CUSTOM_QUESTION_PROMPT,
+)
+
+
+query = "Haz un análisis técnico definiendo todos los ratios de BBVA  para el año 2021"
+result_ = qa_chain({"question": query})
+result = result_["answer"].strip()
+
+display(Markdown(f"<b>{query}</b>"))
+display(Markdown(f"<p>{result}</p>"))
+
+
+query = "¿Cuánto han crecido las ventas de Iberdrola en los últimos cinco años?"
+result_ = qa_chain({"question": query})
+result = result_["answer"].strip()
+
+display(Markdown(f"<b>{query}</b>"))
+display(Markdown(f"<p>{result}</p>"))
+
+
+query = "¿Cuál es el precio medio de la acción de Iberdrola en 2022?"
+result_ = qa_chain({"question": query})
+result = result_["answer"].strip()
+
+display(Markdown(f"<b>{query}</b>"))
+display(Markdown(f"<p>{result}</p>"))
+
+def querying(query, history):
+  memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+  qa_chain = ConversationalRetrievalChain.from_llm(
+      llm=llm,
+      retriever=db.as_retriever(search_kwargs={"k": 2}),
+      memory=memory,
+      condense_question_prompt=CUSTOM_QUESTION_PROMPT,
+  )
+
+  result = qa_chain({"question": query})
+  return result["answer"].strip()
+
+
+iface = gr.ChatInterface(
+    fn = querying,
+    chatbot=gr.Chatbot(height=600),
+    textbox=gr.Textbox(placeholder="¿Cuál es el precio de la acción de BBVA hoy?", container=False, scale=7),
+    title="RanitaRené",
+    theme="soft",
+    examples=["¿Cuál es el precio de la acción de BBVA hoy?",
+              "Haz un análisis técnico de BBVA  para el año 2022"
+                    ],
+
+
+    cache_examples=True,
+    retry_btn="Repetir",
+    undo_btn="Deshacer",
+    clear_btn="Borrar",
+    submit_btn="Enviar"
+
+    )
+
+iface.launch(share=True)
